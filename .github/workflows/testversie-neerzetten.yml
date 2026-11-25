@@ -1,0 +1,84 @@
+# =====================================================================
+# Testversie neerzetten
+# =====================================================================
+# LET OP: dit bestand hoort NIET in deze repository te draaien. Het is een
+# kopie voor de repository "Vrijwilligersapp-test". Zet het daar neer als
+#   .github/workflows/testversie-neerzetten.yml
+# (Zie BEHEER.md, "Testversie (DEV)".)
+#
+# Wat doet dit?
+#   Het haalt de code van de app op uit de openbare repository
+#   park-de-stadshoeve/Vrijwilligersapp (een branch naar keuze) en zet die
+#   op het testadres:
+#     https://park-de-stadshoeve.github.io/Vrijwilligersapp-test/
+#   Op dat adres gebruikt de app vanzelf het TESTPROJECT in Supabase
+#   (zie instellingen.js). Echte gegevens kunnen dus niet geraakt worden.
+#
+# Waarom een aparte repository?
+#   GitHub Pages geeft één adres per repository. De echte app staat op
+#   app.parkdestadshoeve.nl; de testversie heeft een eigen adres nodig.
+#
+# Geheime sleutels?
+#   Geen. De app-code is openbaar, dus ophalen kan zonder wachtwoord.
+#
+# Starten:
+#   GitHub > Vrijwilligersapp-test > tabblad Actions > "Testversie neerzetten"
+#   > Run workflow > vul de naam van de branch in (of laat "main" staan).
+# =====================================================================
+
+name: Testversie neerzetten
+
+on:
+  workflow_dispatch: # alleen met de hand, via de knop "Run workflow"
+    inputs:
+      branch:
+        description: "Welke branch van Vrijwilligersapp? (main = de echte versie)"
+        required: true
+        default: main
+
+permissions:
+  contents: read # code lezen
+  pages: write # de website bijwerken
+  id-token: write # nodig voor GitHub Pages
+
+# Start je hem twee keer kort na elkaar, dan wint de laatste.
+concurrency:
+  group: testversie
+  cancel-in-progress: true
+
+jobs:
+  neerzetten:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publiceren.outputs.page_url }}
+    steps:
+      - name: Code van de app ophalen
+        uses: actions/checkout@v4
+        with:
+          repository: park-de-stadshoeve/Vrijwilligersapp
+          ref: ${{ inputs.branch }}
+          path: site
+
+      - name: Klaarmaken als testversie
+        working-directory: site
+        run: |
+          # Niet nodig op de website.
+          rm -rf .git .github
+          # CNAME hoort bij de echte app (app.parkdestadshoeve.nl), niet hier.
+          rm -f CNAME
+          # Andere naam onder het icoon op het beginscherm, zodat je de
+          # testversie en de echte app niet door elkaar haalt.
+          jq '.name = "TEST Park de Stadshoeve" | .short_name = "TEST Stadshoeve"' \
+            manifest.json > manifest.nieuw && mv manifest.nieuw manifest.json
+          sed -i 's|content="Stadshoeve"|content="TEST Stadshoeve"|' index.html
+          echo "Klaar om te publiceren."
+
+      - name: Website-bestanden inpakken
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publiceren op GitHub Pages
+        id: publiceren
+        uses: actions/deploy-pages@v4
