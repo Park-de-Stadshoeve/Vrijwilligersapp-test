@@ -75,10 +75,10 @@ jobs:
           echo "Klaar om te publiceren."
 
       - name: Website-bestanden inpakken
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: Publiceren op GitHub Pages
         id: publiceren
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
