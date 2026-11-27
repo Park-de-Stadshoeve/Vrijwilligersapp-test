@@ -46,12 +46,13 @@ concurrency:
   group: testversie
   cancel-in-progress: true
 
+# Twee aparte jobs: eerst inpakken, dan publiceren. Stonden ze in één job,
+# dan zocht de publiceerstap het pakket soms een fractie van een seconde te
+# vroeg en vond hij het niet ("No artifacts named github-pages", november
+# 2026). De tweede job begint pas als de eerste helemaal klaar is.
 jobs:
-  neerzetten:
+  inpakken:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.publiceren.outputs.page_url }}
     steps:
       - name: Code van de app ophalen
         uses: actions/checkout@v4
@@ -79,6 +80,13 @@ jobs:
         with:
           path: site
 
+  publiceren:
+    needs: inpakken # wacht tot het inpakken klaar is
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publiceren.outputs.page_url }}
+    steps:
       - name: Publiceren op GitHub Pages
         id: publiceren
         uses: actions/deploy-pages@v5
